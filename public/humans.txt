@@ -1,0 +1,18 @@
+# humanstxt.org/
+# The humans responsible & technology colophon
+
+# AUTHOR
+
+    Anu Tig3r -- anutig3r@gmail.com -- @anutig3r
+
+# CONTRIBUTORS
+
+    Anand Pilania -- https://github.com/AnandPilania
+    
+# THANKS
+
+* Fat-Free Framework - http://fatfreeframework.com/
+
+# TECHNOLOGY COLOPHON
+
+* Bootstrap - http://jquery.com
