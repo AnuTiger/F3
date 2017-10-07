@@ -2,14 +2,14 @@
 
 abstract class Controller
 {
-	protected $viewPath;
+    protected $viewPath;
 
-	protected function view()
-	{
-	}
+    protected function view()
+    {
+    }
 
-	protected function template($template)
-	{
-		template($this->viewPath.$template);
-	}
+    protected function template($template)
+    {
+        template($this->viewPath.$template);
+    }
 }
