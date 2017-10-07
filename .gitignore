@@ -8,7 +8,7 @@ composer.json.bak
 /resources/views/auth
 /resources/views/blog
 /routes/*.ini
-/storage/db
-/storage/uploads
+/storage/db/*
+/storage/uploads/*
 /storage/temp
 /vendor
