@@ -1,0 +1,228 @@
+#!/usr/bin/env php
+
+<?php
+
+class F3 {
+
+    public function __construct($args) {
+        $this->args = $args;
+    }
+
+    public function help() {
+        $this->renderEcho("\n".
+            "syntax: php f3 <command> [<args> [--<options>]]".PHP_EOL.
+            PHP_EOL.
+            "Commands: \n".
+            "php f3 --help                     -->   Displays the help menu.".PHP_EOL.
+
+            "php f3 generate                   -->   Generate SECRET key.".PHP_EOL.
+
+            "php f3 serve                      -->   Start WebServer.".PHP_EOL.
+            "php f3 serve --port               -->   Start WebServer to specific port.".PHP_EOL.
+
+            "php f3 modules                    -->   List of all modules.".PHP_EOL.
+            "php f3 modules --enabled          -->   List enabled modules only.".PHP_EOL.
+            "php f3 modules --disabled         -->   List disabled modules.".PHP_EOL.
+            "php f3 modules publish            -->   Publish config & routes files of enabled modules.".PHP_EOL.
+            "php f3 modules publish --config   -->   Publish only config files of modules.".PHP_EOL.
+            "php f3 modules publish --routes   -->   Publish only route files of modules.".PHP_EOL.
+            "php f3 modules publish --all      -->   Publish config & route files of all modules.".PHP_EOL.
+            "php f3 modules publish --rollback -->   Rollback route & config files of all modules.".PHP_EOL.
+
+            "php f3 routes                     -->   Get list of all routes.".PHP_EOL.
+
+            PHP_EOL);
+    }
+
+    public function run() {
+        if (count($this->args) <= 1) {
+            $this->help();
+        } else {
+            switch ($this->args[1]) {
+				case "generate":
+					$this->generateKey();
+					break;
+                case "serve":
+                    $this->serve();
+                    break;
+                case "modules":
+                    $this->modules();
+                    break;
+                case "routes":
+                    require __DIR__.'/vendor/autoload.php';
+                    App::instance()->loadRoutes();
+                    echo 'fetching routes:'.PHP_EOL;
+                    echo json_encode(Route::instance()->getRoutes());
+                    echo PHP_EOL.'fetch completed.';
+                    break;
+                case "help":
+                case "--help":
+                    $this->help();
+                    break;
+				default:
+					$this->error();
+            }
+        }
+    }
+
+    private function generateKey() {
+        $cipher = 'AES-256-CBC';
+        echo 'base64:'.base64_encode(random_bytes($cipher == 'AES-128-CBC' ? 16 : 32));
+    }
+
+    private function serve() {
+        $command = 'php -S';
+        $ip = '127.0.0.1';
+        $port = 8080;
+        $dir = './';
+
+        foreach($this->args as $key => $arg) {
+            $arg = strtolower($arg);
+            if($arg === 'ip' || $arg === '--ip'){
+                $host = $this->args[++$key];
+                if(
+                    (is_numeric($host) && !filter_var($host, FILTER_VALIDATE_IP))
+                    ||
+                    (is_string($host) && strtolower($host) !== 'localhost')
+                ){
+                    $this->error($arg.': '.$host.' must be localhost OR an valid IP!');
+                    break;
+                }
+                $ip = $host;
+            }
+            if($arg === 'port' || $arg === '--port'){
+                $port = $this->args[++$key];
+            }
+            if($arg === 'dir' || $arg === '--dir'){
+                $dir = $this->args[++$key];
+            }
+        }
+
+        $this->renderEcho(array("F3" => "Served as {$ip}:{$port} to {$dir}\n"));
+        $started = exec($command.' '.$ip.':'.$port.' -t '.$dir);
+        if($started){$this->error($started);};
+    }
+
+    private function modules() {
+        require __DIR__.'/vendor/autoload.php';
+        $f3 = Base::instance();
+        $config = $f3->config(__DIR__.'/config/app.ini');
+
+        if(
+            !in_array('publish', $this->args)&&
+            (!in_array('enabled', $this->args) && !in_array('--enabled', $this->args))&&
+            (!in_array('disabled', $this->args) && !in_array('--disabled', $this->args))
+        ) {
+            $this->renderEcho(array("All available modules" => array('enabled' => $f3->get('MODULES.ENABLED'), 'disabled:' => $f3->get('MODULES.DISABLED'))));
+        }else{
+            foreach($this->args as $key => $arg) {
+                $arg = strtolower($arg);
+                if($arg === 'enabled' || $arg === '--enabled') {
+                    $this->renderEcho(array('Enabled modules' => $f3->get('MODULES.ENABLED')));
+                }
+                if($arg === 'disabled' || $arg === '--disabled') {
+                    $this->renderEcho(array('Disabled modules' => $f3->get('MODULES.DISABLED')));
+                }
+                if($arg === 'publish') {
+                    if(in_array('rollback', $this->args) || in_array('--rollback', $this->args)) {
+                        $path = realpath(__DIR__);
+                        $modules = array_merge((array) $f3->get('MODULES.ENABLED'), (array) $f3->get('MODULES.DISABLED'));
+                        $this->renderEcho("Rolling-back modules files:\n\n");
+                        foreach($modules as $module) {
+                            $uclM = strtolower($module);
+                            $configFile = "'{$path}/config/{$uclM}.ini'";
+                            $routeFile = "'{$path}/routes/{$uclM}.ini'";
+                            if(file_exists("{$path}/config/{$uclM}.ini")) {
+                                exec("rm {$configFile}");
+                            }
+                            $this->renderEcho("Config file of {$module} is removed.\n");
+                            if(file_exists("{$path}/routes/{$uclM}.ini")) {
+                                exec("rm {$routeFile}");
+                            }
+                            $this->renderEcho("Route file of {$module} is removed.\n");
+                        }
+                        break;
+                    }else if(in_array('config', $this->args) || in_array('--config', $this->args)) {
+                        foreach($f3->get('MODULES.ENABLED') as $module) {
+                            $this->modulePublish('config', ucfirst($module));
+                        }
+                    }else if(in_array('routes', $this->args) || in_array('--routes', $this->args)) {
+                        foreach($f3->get('MODULES.ENABLED') as $module) {
+                            $this->modulePublish('routes', ucfirst($module));
+                        }
+                    }else if(in_array('all', $this->args) || in_array('--all', $this->args)) {
+                        $this->modulePublish('config');
+                        $this->modulePublish('routes');
+                    }else{
+                        $this->renderEcho("Publishing config & route files of enabled modules:\n\n");
+                        foreach($f3->get('MODULES.ENABLED') as $module) {
+                            $this->modulePublish('config', $module);
+                            $this->modulePublish('routes', $module);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private function modulePublish($type, $module = '*') {
+        $path = realpath(__DIR__);
+        foreach(glob($path."/app/{$module}/{$type}.ini") as $file) {
+            $name1 = str_ireplace($path.'/app/', '', $file);
+            $name2 = str_ireplace("/{$type}.ini", '', $name1);
+            $module = ucfirst($name2);
+            $fileName = strtolower($module);
+            exec("cp '{$file}' '{$path}/{$type}/{$fileName}.ini'");
+            $this->renderEcho("{$module} {$type} file published to '{$type}' as '{$fileName}.ini'.\n");
+        }
+    }
+
+    private function error($msg = null) {
+		if($msg){
+            $this->renderEcho("\t{$msg}");
+            exit();
+        }
+
+        echo "\nSupplied argument/s is not supported:\n";
+		foreach($this->args as $arg) {
+			if($arg == 'f3') { continue; }
+			echo "\t";
+			echo "{$arg}";
+			echo "\n";
+		}
+
+        echo PHP_EOL;
+	}
+
+    private function renderEcho($result) {
+        if(is_array($result)) {
+            foreach($result as $key => $value) {
+                echo "$key:\n";
+                if(is_array($value)) {
+                    foreach ($value as $key => $tab) {
+                        if(is_numeric($key)) {
+                            echo "\t{$tab}\n";
+                        }else{
+                            echo "\t{$key}:\n";
+                            if(is_array($tab)){
+                                foreach($tab as $last) {
+                                    echo "\t\t{$last}\n";
+                                }
+                            }else{
+                                echo "\t\t{$tab}\n";
+                            }
+                        }
+                    }
+                }else{
+                    echo "\t{$value}\n";
+                }
+            }
+        }else{
+            echo $result;
+        }
+    }
+}
+
+$f3 = new F3($argv);
+$f3->run();

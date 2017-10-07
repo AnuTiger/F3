@@ -1,0 +1,6 @@
+[submodule "app/Auth"]
+	path = app/Auth
+	url = https://github.com/AnuTiger/f3-auth
+[submodule "app/Blog"]
+	path = app/Blog
+	url = https://github.com/AnuTiger/f3-blog

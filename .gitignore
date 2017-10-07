@@ -1,0 +1,12 @@
+.env
+composer.json.bak
+/config/*.ini
+/helpers/*.txt
+/node_modules
+/public/assets/js/highlight.min.js
+/public/temp
+/resources/views/auth
+/resources/views/blog
+/routes
+/storage/*
+/vendor
