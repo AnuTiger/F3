@@ -18,9 +18,13 @@
         "ikkez/f3-cortex": "^1.5",
         "ikkez/f3-assets": "^1.1",
         "ikkez/f3-flash": "^1.0",
+        "ikkez/f3-middleware": "^1.1",
+        "ikkez/f3-events": "dev-master",
         "rafamds/f3-falsum": "^2.6",
         "anandpilania/f3-validator": "^1.0",
-        "firebase/php-jwt": "^5.0"
+        "firebase/php-jwt": "^5.0",
+        "xfra35/f3-access": "^1.0",
+        "ikkez/f3-mailer": "^1.0"
     },
     "autoload": {
         "psr-4": {

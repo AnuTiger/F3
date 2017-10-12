@@ -12,6 +12,7 @@ return [
     ],
 
     'error' => [
+        'default' => 'Something went wrong! Please try after sometime!!',
         'validations' => [
             'accepted' => 'The {0} must be accepted.',
             'active_url' => 'The {0} is not a valid URL.',
@@ -81,6 +82,7 @@ return [
         'auth' => [
             'not_registered' => '{0} is not registered with us!',
             'password' => 'Password is not geniune for {0}',
+            'not_active' => 'This account is not activated! {0} for resend activation link!'
         ]
     ],
 

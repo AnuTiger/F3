@@ -3,13 +3,32 @@
 class app extends Prefab
 {
     public $db;
-    public $app;
+    public $f3;
     public $session;
     public $authenticatedUser;
 
     public function __construct()
     {
-        $this->app = $this->app ?: Base::instance();
+        $this->f3 = $this->f3 ?: Base::instance();
+    }
+	public function __get($property)
+    {
+        return null !== $this->f3->get($property) ? $this->f3->get($property) : false;
+    }
+    public function __set($property, $value)
+    {
+        $this->f3->set($property,  $value);
+    }
+    public function __call($method, $args) {
+        if(method_exists($this->f3, $method)) {
+            return $this->f3->$method($args[0], isset($args[1])?$args[1]:null);
+        }
+    }
+    static public function __callStatic($method, $args) {
+        $f3 = f3();
+        if(method_exists($f3, $method)) {
+            return $f3->$method($args[0], isset($args[1])?$args[1]:null);
+        }
     }
 
     public static function singleton()
@@ -25,32 +44,36 @@ class app extends Prefab
 
     public function db()
     {
-        return $this->db ?: $this->app->DB;
+        return $this->db ?: $this->f3->DB;
     }
 
     public function session()
     {
-        return $this->session ?: $this->app->SESSION;
+        return $this->session ?: $this->f3->SESSION;
     }
 
-    public function user()
+    public function user($user = null)
     {
-        return $this->authenticatedUser = $this->app->get('SESSION.USER') ?: false;
+        if($user) {
+            $this->f3->set('SESSION.USER', $user);
+        }
+
+        return $this->authenticatedUser ?: $this->authenticatedUser = $this->f3->get('SESSION.USER');
     }
 
     public function initialized($def = null)
     {
-        return null !== $def ? $this->app->set('INITIALIZED', $def) : $this->app->get('INITIALIZED');
+        return null !== $def ? $this->f3->set('INITIALIZED', $def) : $this->f3->get('INITIALIZED');
     }
 
     public function config($key = null)
     {
-        return $this->app->get($key ?: 'CONFIG');
+        return $this->f3->get($key ?: 'CONFIG');
     }
 
     public function status()
     {
-        return $this->app->IS_LIVE;
+        return $this->f3->IS_LIVE;
     }
 
     public function run()
@@ -64,7 +87,7 @@ class app extends Prefab
         $this->configureAssets();
         $this->registerErrorHandler();
         $this->initialized(true);
-        $this->app->run();
+        $this->f3->run();
     }
 
     public function loadRoutes($file = null)
@@ -80,10 +103,10 @@ class app extends Prefab
     private function _load($path, $file = null)
     {
         if ($file) {
-            $this->app->config(base_path("{path}/{$file}"));
+            $this->f3->config(base_path("{path}/{$file}"));
         } else {
             foreach (glob(base_path("{$path}/*.ini")) as $file) {
-                $this->app->config($file);
+                $this->f3->config($file);
             }
         }
     }
@@ -98,50 +121,50 @@ class app extends Prefab
 
     public function configureDebug()
     {
-        if (!$this->app->DEV) {
-            $this->app->set('DEBUG', 0);
+        if (!$this->f3->DEV) {
+            $this->f3->set('DEBUG', 0);
         }
     }
 
     public function configureDB()
     {
-        $type = strtolower($this->app->DB_TYPE);
+        $type = strtolower($this->f3->DB_TYPE);
 
         if ($type == 'jig') {
-            $this->db = new DB\Jig($this->app->DB_PATH, DB\Jig::FORMAT_JSON);
+            $this->db = new DB\Jig($this->f3->DB_PATH, DB\Jig::FORMAT_JSON);
         } elseif ($type == 'sql') {
-            $this->db = new DB\SQL($this->app->DB, $this->app->DB_USER, $this->app->DB_PSWD);
+            $this->db = new DB\SQL($this->f3->DB, $this->f3->DB_USER, $this->f3->DB_PSWD);
         } elseif ($type == 'mongo') {
-            $this->db = new DB\Mongo($this->app->DB, $this->app->DB_USER);
+            $this->db = new DB\Mongo($this->f3->DB, $this->f3->DB_USER);
         }
-        $this->app->set('DB', $this->db);
+        $this->f3->set('DB', $this->db);
     }
 
     public function configureSession()
     {
-        $type = strtolower($this->app->SESSION);
+        $type = strtolower($this->f3->SESSION);
 
         if ($type) {
-            if ($this->app->CSRF && ('jig' == $type || 'sql' == $type || 'mongo' == $type)) {
+            if ($this->f3->CSRF && ('jig' == $type || 'sql' == $type || 'mongo' == $type)) {
                 $this->configureCSRF($type);
-            } elseif ($this->app->CSRF) {
+            } elseif ($this->f3->CSRF) {
                 $this->session = new Session(null, 'CSRF');
             } else {
                 if ($type == 'jig' || $type == 'mongo' || $type == 'sql') {
                     $session = str_ireplace('/', '', 'DB\/'.$this->_getDBType($type).'\Session');
-                    $this->session = new $session($this->app->DB);
+                    $this->session = new $session($this->f3->DB);
                 } else {
                     $this->session = new Session();
                 }
             }
-            $this->app->set('SESSION', $this->session);
+            $this->f3->set('SESSION', $this->session);
         }
     }
 
     public function configureCSRF($type)
     {
-        $session = str_ireplace('/', '', 'DB\/'.$this->_getDBType($type).'\Session');
-        $this->session = new $session($this->app->DB, 'sessions', null, 'CSRF');
+        $session = 'DB\\'.$this->_getDBType($type).'\\Session';
+        $this->session = new $session($this->f3->DB, 'SESSIONS', null, 'CSRF');
     }
 
     private function _getDBType($type)
@@ -156,17 +179,17 @@ class app extends Prefab
     public function configureAssets()
     {
         $assets = Assets::instance();
-        $this->app->set('ASSETS.onFileNotFound', function ($file) {
+        $this->f3->set('ASSETS.onFileNotFound', function ($file) {
             echo 'file not found: '.$file;
         });
     }
 
     public function registerErrorHandler()
     {
-        if ($this->app->DEV) {
-            Falsum\Run::handler($this->app->DEBUG != 3);
+        if ($this->f3->DEV) {
+            Falsum\Run::handler($this->f3->DEBUG != 3);
         } else {
-            $this->app->set('ONERROR', 'App\Core\Controllers\ErrorController->init');
+            $this->f3->set('ONERROR', 'App\Core\Controllers\ErrorController->init');
         }
     }
 }

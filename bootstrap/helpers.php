@@ -88,7 +88,8 @@ function flash($message, $type = 'success')
 }
 function trans($key, $params = null)
 {
-    return f3()->format(f3()->get($key), ($params ?: ''));
+    $f3 = f3();
+    return $f3->format($f3->get($key), ($params ?: ''));
 }
 function error($error)
 {
@@ -108,4 +109,8 @@ function error($error)
     } else {
         flash($error, 'danger');
     }
+}
+function dd($params)
+{
+    die(json_encode($params));
 }
